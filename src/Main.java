@@ -34,7 +34,8 @@ public class Main {
                 //Basically it just import code from screen blocker (UI)
                 // Please Contact Me Before Edit UI Pleaseeeeeee
                 String screenblockpath = System.getProperty("java.class.path");
-                ProcessBuilder processBuilder = new ProcessBuilder("java", "-cp", screenblockpath, "ScreenBlocker");
+                ProcessBuilder processBuilder = new ProcessBuilder("java","-Dapple.awt.UIElement=true", "-cp", screenblockpath, "ScreenBlocker");
+                //-Dapple.awt.UIElement --> Docker Icon Remove
                 processBuilder.inheritIO();
 
 

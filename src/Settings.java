@@ -12,6 +12,11 @@ public class Settings {
         }
 
         frame = new JFrame("Settings");
+
+        frame.setType(Window.Type.UTILITY);
+        // Hide from Windows
+        //Windows Person Fix It Pleaseeeee
+
         frame.setSize(300, 150);
 
 

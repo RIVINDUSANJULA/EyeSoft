@@ -5,6 +5,9 @@ public class ScreenBlocker {
     public static void main(String[] args) {
         JFrame frame = new JFrame();
 
+        frame.setType(Window.Type.UTILITY);
+        // Windows Person Check - Rivindu
+
         frame.setUndecorated(true);
         frame.setAlwaysOnTop(true);
         frame.getContentPane().setBackground(Color.BLACK);
