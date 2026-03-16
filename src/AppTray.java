@@ -22,17 +22,7 @@ public class AppTray {
         MenuItem settingsItem = new MenuItem("Time");
         settingsItem.addActionListener(e -> {
 
-
-            String input = JOptionPane.showInputDialog("Enter", Main.waitSeconds);
-
-            if (input != null && !input.trim().isEmpty()) {
-                try {
-                    Main.waitSeconds = Integer.parseInt(input.trim());
-                    Main.startT();
-                } catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(null, "Please enter a valid number.");
-                }
-            }
+            Settings.showWindow();
         });
 
         MenuItem exitItem = new MenuItem("Exit");
