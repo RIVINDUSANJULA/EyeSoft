@@ -54,8 +54,10 @@ public class Settings {
                 JPanel cardContainer = new JPanel(new CardLayout());
                 cardContainer.setBackground(BG);
 
+                JPanel mainPanel     = buildMainSettingsPanel();
                 JPanel schedulePanel = buildSchedulePanel();
                 JPanel aboutPanel    = buildAboutPanel();
+                cardContainer.add(mainPanel,     "Settings");
                 cardContainer.add(schedulePanel, "Schedule");
                 cardContainer.add(aboutPanel,    "About");
 
@@ -78,14 +80,14 @@ public class Settings {
                     }
                 }
 
-                // Pre-select Schedule tab
+                // Pre-select Settings tab
                 for (Component c : toolbar.getComponents()) {
-                    if (c instanceof JButton b && "Schedule".equals(b.getActionCommand())) {
+                    if (c instanceof JButton b && "Settings".equals(b.getActionCommand())) {
                         b.setBackground(BG.darker());
                         break;
                     }
                 }
-                cards.show(cardContainer, "Schedule");
+                cards.show(cardContainer, "Settings");
 
                 frame.add(toolbar, BorderLayout.NORTH);
                 frame.add(cardContainer, BorderLayout.CENTER);
@@ -121,6 +123,68 @@ public class Settings {
         b.setOpaque(true);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return b;
+    }
+
+    // ── Main Settings tab ──────────────────────────────────────────────────────
+    private static JPanel buildMainSettingsPanel() {
+        JPanel root = new JPanel();
+        root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
+        root.setBackground(BG);
+        root.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+
+        // ── Run at startup ────────────────────────────────────────────────────
+        root.add(buildSectionHeader("Startup"));
+        root.add(Box.createVerticalStrut(6));
+        root.add(styledLabel("Control whether EyeSoft launches automatically when you log in.", TEXT_MUTED, 12));
+        root.add(Box.createVerticalStrut(14));
+
+        boolean startupEnabled = StartupManager.isEnabled();
+        JCheckBox startupCB = makeCheckBox("Run EyeSoft when Mac starts", startupEnabled);
+        startupCB.addActionListener(e -> {
+            try {
+                boolean enable = startupCB.isSelected();
+                EyeLogger.info("Settings", "Run at startup toggled: " + enable);
+                StartupManager.setEnabled(enable);
+            } catch (Exception ex) {
+                EyeLogger.error("Settings", "Failed to change startup preference", ex);
+                // Revert checkbox to previous state on failure
+                startupCB.setSelected(!startupCB.isSelected());
+            }
+        });
+        root.add(startupCB);
+        root.add(Box.createVerticalStrut(28));
+
+        // Divider
+        root.add(divider());
+        root.add(Box.createVerticalStrut(20));
+
+        // ── Restore Defaults ──────────────────────────────────────────────────
+        root.add(buildSectionHeader("Restore Defaults"));
+        root.add(Box.createVerticalStrut(6));
+        root.add(styledLabel("Reset all settings to their original values.", TEXT_MUTED, 12));
+        root.add(Box.createVerticalStrut(14));
+
+        JButton defaultBtn = makeActionButton("Restore all defaults");
+        defaultBtn.addActionListener(e -> {
+            try {
+                EyeLogger.info("Settings", "Restore all defaults triggered from main Settings tab");
+                Main.breakSeconds     = 20;
+                Main.waitSeconds      = 600;
+                Main.showNotification = true;
+                saveInt("savedBreakTime",       20);
+                saveInt("savedWaitTime",        600);
+                saveBoolean("showNotification", true);
+                Main.startT();
+                frame.dispose();
+                showWindow();
+                EyeLogger.info("Settings", "All defaults restored and window refreshed");
+            } catch (Exception ex) {
+                EyeLogger.error("Settings", "Failed to restore all defaults", ex);
+            }
+        });
+        root.add(defaultBtn);
+
+        return root;
     }
 
     // ── Schedule tab ───────────────────────────────────────────────────────────
