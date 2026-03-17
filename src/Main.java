@@ -4,18 +4,19 @@
 import java.util.concurrent.*;
 
 import java.io.IOException;
+import java.awt.TrayIcon;
 
 import java.util.prefs.Preferences;
 
 
 public class Main {
 
-//    public static int waitSeconds = ;
-
     static Preferences prefs = Preferences.userNodeForPackage(Main.class);
     public static int waitSeconds = prefs.getInt("savedWaitTime", 30);
-    private static ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    private static ScheduledFuture<?> scheduledTask;
+    public static int breakSeconds = prefs.getInt("savedBreakTime", 20);
+    
+    private static ExecutorService executor = Executors.newSingleThreadExecutor();
+    private static Future<?> currentTask;
 
     void main() {
         AppTray.setupTray();
@@ -24,57 +25,55 @@ public class Main {
 
     public static void startT() {
 
-        if (scheduledTask != null && !scheduledTask.isCancelled()) {
-            scheduledTask.cancel(false);
+        if (currentTask != null && !currentTask.isDone()) {
+            currentTask.cancel(true);
         }
 
-        Runnable blockingTask = () -> {
-
-            Process process = null;
-
+        currentTask = executor.submit(() -> {
             try {
+                // First wait happens before the first break. We'll start with waiting.
+                while (!Thread.currentThread().isInterrupted()) {
+                    
+                    int notifyAdvance = Math.min(10, waitSeconds / 2); // 10 secs or half the wait
+                    int initialWait = waitSeconds - notifyAdvance;
 
+                    if (initialWait > 0) {
+                        Thread.sleep(initialWait * 1000L);
+                    }
 
-                //Below Is for Frontend People
-                //Basically it just import code from screen blocker (UI)
-                // Please Contact Me Before Edit UI Pleaseeeeeee
-                String screenblockpath = System.getProperty("java.class.path");
-                ProcessBuilder processBuilder = new ProcessBuilder("java","-Dapple.awt.UIElement=true", "-cp", screenblockpath, "ScreenBlocker");
-                //-Dapple.awt.UIElement --> Docker Icon Remove
-                processBuilder.inheritIO();
+                    if (notifyAdvance > 0) {
+                        if (AppTray.trayIcon != null) {
+                            AppTray.trayIcon.displayMessage("Upcoming Break", "Your break will start in " + notifyAdvance + " seconds.", TrayIcon.MessageType.INFO);
+                        }
+                        Thread.sleep(notifyAdvance * 1000L);
+                    }
 
+                    Process process = null;
+                    try {
+                        //Start ScreenBlocker
+                        String screenblockpath = System.getProperty("java.class.path");
+                        ProcessBuilder processBuilder = new ProcessBuilder("java", "-Dapple.awt.UIElement=true", "-cp", screenblockpath, "ScreenBlocker");
+                        processBuilder.inheritIO();
+                        process = processBuilder.start();
 
-                process = processBuilder.start();
-
-                Thread.sleep(5000);
-                // Above Code --> Who Much Time Should It have the Screen Blocker
-                // 1 Second = 1000 ms
-                // We need to make it adjusted from settings
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-                Thread.currentThread().interrupt();
-            } finally {
-                if (process != null && process.isAlive()) {
-                    process.destroy();
+                        Thread.sleep(breakSeconds * 1000L);
+                    } finally {
+                        if (process != null && process.isAlive()) {
+                            process.destroy();
+                        }
+                    }
                 }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        };
-
-        
-
-        scheduler.scheduleWithFixedDelay(blockingTask, waitSeconds, waitSeconds, TimeUnit.SECONDS);
-        //In Brackets
-        //2) After how much time the application run
-        //(Basically after User Open App after how many seconds will Screen Blocker appear first)
-
-        //3) After 1st Block Done - Above One Thread.sleep( ms ) in above part
-        //The delay for next block screen
+        });
 
     }
 
-
-        public static void shutdown () {
-            scheduler.shutdownNow();
-            System.exit(0);
-        }
+    public static void shutdown () {
+        executor.shutdownNow();
+        System.exit(0);
+    }
 }

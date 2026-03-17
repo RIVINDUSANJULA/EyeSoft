@@ -29,42 +29,42 @@ public class Settings {
         frame.setAlwaysOnTop(true);
 
         JTabbedPane tabbedPane = new JTabbedPane();
-        JPanel timingPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 20));
+        JPanel timingPanel = new JPanel(new GridLayout(3, 2, 10, 10));
+        timingPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
+        JLabel waitLabel = new JLabel("Wait Time (seconds):");
+        JTextField waitTimeField = new JTextField(String.valueOf(Main.waitSeconds), 5);
 
+        JLabel breakLabel = new JLabel("Break Time (seconds):");
+        JTextField breakTimeField = new JTextField(String.valueOf(Main.breakSeconds), 5);
 
-        JLabel label = new JLabel("Wait");
-        // Above is Add Wait Time. Fix UI
-
-
-
-        JTextField timeField = new JTextField(String.valueOf(Main.waitSeconds), 5);
         JButton saveButton = new JButton("Save");
-        //Save Btn Fix UI
-
         saveButton.addActionListener(e -> {
             try {
-                int newWait = Integer.parseInt(timeField.getText().trim());
-
+                int newWait = Integer.parseInt(waitTimeField.getText().trim());
+                int newBreak = Integer.parseInt(breakTimeField.getText().trim());
 
                 Main.waitSeconds = newWait;
-
+                Main.breakSeconds = newBreak;
 
                 Preferences prefs = Preferences.userNodeForPackage(Main.class);
                 prefs.putInt("savedWaitTime", newWait);
+                prefs.putInt("savedBreakTime", newBreak);
                 Main.startT();
 
                 frame.dispose();
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(frame, "Valid No");
-                //Setting Wrror
+                JOptionPane.showMessageDialog(frame, "Please enter valid numbers for both fields.", "Input Error", JOptionPane.ERROR_MESSAGE);
+                //Setting Error
             }
         });
 
-        timingPanel.add(label);
-        timingPanel.add(timeField);
+        timingPanel.add(waitLabel);
+        timingPanel.add(waitTimeField);
+        timingPanel.add(breakLabel);
+        timingPanel.add(breakTimeField);
+        timingPanel.add(new JLabel("")); // Empty cell for alignment
         timingPanel.add(saveButton);
-        timingPanel.setVisible(true);
 
         JPanel aboutPanel = new JPanel(new BorderLayout());
 

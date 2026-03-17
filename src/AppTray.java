@@ -1,8 +1,9 @@
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import javax.swing.JOptionPane;
 
 public class AppTray {
+
+    public static TrayIcon trayIcon;
 
     public static void setupTray() {
         if (!SystemTray.isSupported()) {
@@ -33,7 +34,7 @@ public class AppTray {
         popup.add(settingsItem);
         popup.add(exitItem);
 
-        TrayIcon trayIcon = new TrayIcon(iconImage, "EyeSoft", popup);
+        trayIcon = new TrayIcon(iconImage, "EyeSoft", popup);
         trayIcon.setImageAutoSize(true);
 
         try {
