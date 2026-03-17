@@ -1,0 +1,103 @@
+//import java.util.concurrent.Executors;
+//import java.util.concurrent.ScheduledExecutorService;
+//import java.util.concurrent.TimeUnit;
+package com.eyesoft;
+
+import java.util.concurrent.*;
+
+import java.io.IOException;
+import java.awt.TrayIcon;
+
+import java.util.prefs.Preferences;
+
+
+public class Main {
+
+    static Preferences prefs = Preferences.userNodeForPackage(Main.class);
+    public static int waitSeconds  = prefs.getInt("savedWaitTime",  600);   // default 10 min
+    public static int breakSeconds = prefs.getInt("savedBreakTime", 20);    // default 20 sec
+    public static boolean showNotification = prefs.getBoolean("showNotification", true);
+    
+    private static ExecutorService executor = Executors.newSingleThreadExecutor();
+    private static Future<?> currentTask;
+
+    public static void main(String[] args) {
+        EyeLogger.info("Main", "EyeSoft starting up");
+        try {
+            AppTray.setupTray();
+            startT();
+            EyeLogger.info("Main", "Startup complete");
+        } catch (Exception e) {
+            EyeLogger.error("Main", "Fatal error during startup", e);
+            System.exit(1);
+        }
+    }
+
+    public static void startT() {
+
+        if (currentTask != null && !currentTask.isDone()) {
+            currentTask.cancel(true);
+        }
+
+        currentTask = executor.submit(() -> {
+            EyeLogger.info("Scheduler", "Break loop started — wait=" + waitSeconds + "s, break=" + breakSeconds + "s, notify=" + showNotification);
+            try {
+                // First wait happens before the first break. We'll start with waiting.
+                while (!Thread.currentThread().isInterrupted()) {
+                    
+                    int notifyAdvance = Math.min(10, waitSeconds / 2); // 10 secs or half the wait
+                    int initialWait = waitSeconds - notifyAdvance;
+
+                    if (initialWait > 0) {
+                        Thread.sleep(initialWait * 1000L);
+                    }
+
+                    if (notifyAdvance > 0 && showNotification) {
+                        if (AppTray.trayIcon != null) {
+                            AppTray.trayIcon.displayMessage("Upcoming Break",
+                                "Your break will start in " + notifyAdvance + " seconds.",
+                                TrayIcon.MessageType.INFO);
+                        }
+                        Thread.sleep(notifyAdvance * 1000L);
+                    } else if (notifyAdvance > 0) {
+                        Thread.sleep(notifyAdvance * 1000L);
+                    }
+
+                    Process process = null;
+                    try {
+                        //Start ScreenBlocker
+                        String screenblockpath = System.getProperty("java.class.path");
+                        ProcessBuilder processBuilder = new ProcessBuilder("java", "-Dapple.awt.UIElement=true", "-cp", screenblockpath, "com.eyesoft.ScreenBlocker");
+                        processBuilder.inheritIO();
+                        process = processBuilder.start();
+
+                        Thread.sleep(breakSeconds * 1000L);
+                    } finally {
+                        if (process != null && process.isAlive()) {
+                            process.destroy();
+                        }
+                    }
+                }
+            } catch (InterruptedException e) {
+                EyeLogger.info("Scheduler", "Break loop interrupted (normal on restart/shutdown)");
+                Thread.currentThread().interrupt();
+            } catch (IOException e) {
+                EyeLogger.error("Scheduler", "Failed to launch ScreenBlocker process", e);
+            } catch (Exception e) {
+                EyeLogger.error("Scheduler", "Unexpected error in break loop", e);
+            }
+        });
+
+    }
+
+    public static void shutdown() {
+        EyeLogger.info("Main", "Shutdown requested — stopping executor and exiting");
+        try {
+            executor.shutdownNow();
+        } catch (Exception e) {
+            EyeLogger.error("Main", "Error while shutting down executor", e);
+        } finally {
+            System.exit(0);
+        }
+    }
+}
