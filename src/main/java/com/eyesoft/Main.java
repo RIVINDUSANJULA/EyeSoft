@@ -33,6 +33,7 @@ public class Main {
         }
 
         currentTask = executor.submit(() -> {
+            EyeLogger.info("Scheduler", "Break loop started — wait=" + waitSeconds + "s, break=" + breakSeconds + "s, notify=" + showNotification);
             try {
                 // First wait happens before the first break. We'll start with waiting.
                 while (!Thread.currentThread().isInterrupted()) {
@@ -71,9 +72,12 @@ public class Main {
                     }
                 }
             } catch (InterruptedException e) {
+                EyeLogger.info("Scheduler", "Break loop interrupted (normal on restart/shutdown)");
                 Thread.currentThread().interrupt();
             } catch (IOException e) {
-                e.printStackTrace();
+                EyeLogger.error("Scheduler", "Failed to launch ScreenBlocker process", e);
+            } catch (Exception e) {
+                EyeLogger.error("Scheduler", "Unexpected error in break loop", e);
             }
         });
 

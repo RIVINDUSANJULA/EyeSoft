@@ -2,7 +2,6 @@ package com.eyesoft;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.Hashtable;
 import java.util.prefs.Preferences;
 
 /**
@@ -16,7 +15,6 @@ public class Settings {
 
     // ── Dark palette ───────────────────────────────────────────────────────────
     private static final Color BG          = new Color(43, 43, 43);
-    private static final Color BG_SECTION  = new Color(50, 50, 50);
     private static final Color BG_TOOLBAR  = new Color(55, 55, 55);
     private static final Color BORDER_CLR  = new Color(70, 70, 70);
     private static final Color TEXT        = new Color(220, 220, 220);
