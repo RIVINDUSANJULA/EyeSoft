@@ -1,3 +1,5 @@
+package com.eyesoft;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.prefs.Preferences;

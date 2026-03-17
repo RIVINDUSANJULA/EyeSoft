@@ -1,6 +1,8 @@
 //import java.util.concurrent.Executors;
 //import java.util.concurrent.ScheduledExecutorService;
 //import java.util.concurrent.TimeUnit;
+package com.eyesoft;
+
 import java.util.concurrent.*;
 
 import java.io.IOException;
@@ -52,7 +54,7 @@ public class Main {
                     try {
                         //Start ScreenBlocker
                         String screenblockpath = System.getProperty("java.class.path");
-                        ProcessBuilder processBuilder = new ProcessBuilder("java", "-Dapple.awt.UIElement=true", "-cp", screenblockpath, "ScreenBlocker");
+                        ProcessBuilder processBuilder = new ProcessBuilder("java", "-Dapple.awt.UIElement=true", "-cp", screenblockpath, "com.eyesoft.ScreenBlocker");
                         processBuilder.inheritIO();
                         process = processBuilder.start();
 
