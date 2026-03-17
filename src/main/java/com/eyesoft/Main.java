@@ -1,23 +1,19 @@
-//import java.util.concurrent.Executors;
-//import java.util.concurrent.ScheduledExecutorService;
-//import java.util.concurrent.TimeUnit;
 package com.eyesoft;
 
 import java.util.concurrent.*;
-
 import java.io.IOException;
 import java.awt.TrayIcon;
-
 import java.util.prefs.Preferences;
 
-
+// The heart of the app. Keeps track of user settings and runs the break loop in the background.
 public class Main {
 
+    // Load saved settings from disk, or fall back to sensible defaults
     static Preferences prefs = Preferences.userNodeForPackage(Main.class);
-    public static int waitSeconds  = prefs.getInt("savedWaitTime",  600);   // default 10 min
-    public static int breakSeconds = prefs.getInt("savedBreakTime", 20);    // default 20 sec
+    public static int waitSeconds  = prefs.getInt("savedWaitTime",  600); // 10 minutes by default
+    public static int breakSeconds = prefs.getInt("savedBreakTime", 20);  // 20 seconds by default
     public static boolean showNotification = prefs.getBoolean("showNotification", true);
-    
+
     private static ExecutorService executor = Executors.newSingleThreadExecutor();
     private static Future<?> currentTask;
 
@@ -33,8 +29,9 @@ public class Main {
         }
     }
 
+    // Starts (or restarts) the break scheduler.
+    // If a previous loop is still running, we cancel it first before starting fresh.
     public static void startT() {
-
         if (currentTask != null && !currentTask.isDone()) {
             currentTask.cancel(true);
         }
@@ -42,11 +39,12 @@ public class Main {
         currentTask = executor.submit(() -> {
             EyeLogger.info("Scheduler", "Break loop started — wait=" + waitSeconds + "s, break=" + breakSeconds + "s, notify=" + showNotification);
             try {
-                // First wait happens before the first break. We'll start with waiting.
+                // Keep cycling: wait, optionally notify, then show the break screen
                 while (!Thread.currentThread().isInterrupted()) {
-                    
-                    int notifyAdvance = Math.min(10, waitSeconds / 2); // 10 secs or half the wait
-                    int initialWait = waitSeconds - notifyAdvance;
+
+                    // Give the user a heads-up a few seconds before the break, then wait
+                    int notifyAdvance = Math.min(10, waitSeconds / 2);
+                    int initialWait   = waitSeconds - notifyAdvance;
 
                     if (initialWait > 0) {
                         Thread.sleep(initialWait * 1000L);
@@ -63,14 +61,15 @@ public class Main {
                         Thread.sleep(notifyAdvance * 1000L);
                     }
 
+                    // Launch the break screen as a separate process so it can go full-screen
                     Process process = null;
                     try {
-                        //Start ScreenBlocker
-                        String screenblockpath = System.getProperty("java.class.path");
-                        ProcessBuilder processBuilder = new ProcessBuilder("java", "-Dapple.awt.UIElement=true", "-cp", screenblockpath, "com.eyesoft.ScreenBlocker");
-                        processBuilder.inheritIO();
-                        process = processBuilder.start();
-
+                        String classPath = System.getProperty("java.class.path");
+                        ProcessBuilder pb = new ProcessBuilder(
+                            "java", "-Dapple.awt.UIElement=true", "-cp", classPath, "com.eyesoft.ScreenBlocker"
+                        );
+                        pb.inheritIO();
+                        process = pb.start();
                         Thread.sleep(breakSeconds * 1000L);
                     } finally {
                         if (process != null && process.isAlive()) {
@@ -79,23 +78,24 @@ public class Main {
                     }
                 }
             } catch (InterruptedException e) {
+                // This is normal — happens when we restart the timer or shut down
                 EyeLogger.info("Scheduler", "Break loop interrupted (normal on restart/shutdown)");
                 Thread.currentThread().interrupt();
             } catch (IOException e) {
-                EyeLogger.error("Scheduler", "Failed to launch ScreenBlocker process", e);
+                EyeLogger.error("Scheduler", "Failed to launch the break screen process", e);
             } catch (Exception e) {
-                EyeLogger.error("Scheduler", "Unexpected error in break loop", e);
+                EyeLogger.error("Scheduler", "Something unexpected went wrong in the break loop", e);
             }
         });
-
     }
 
+    // Cleanly stop everything and close the app
     public static void shutdown() {
         EyeLogger.info("Main", "Shutdown requested — stopping executor and exiting");
         try {
             executor.shutdownNow();
         } catch (Exception e) {
-            EyeLogger.error("Main", "Error while shutting down executor", e);
+            EyeLogger.error("Main", "Ran into a problem while shutting down", e);
         } finally {
             System.exit(0);
         }

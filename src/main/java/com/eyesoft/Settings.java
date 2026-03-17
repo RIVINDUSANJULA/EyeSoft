@@ -4,26 +4,21 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.prefs.Preferences;
 
-/**
- * Settings — EyeSoft Preferences Window
- * Dark-themed with tabs: Schedule | About
- * Implements GitHub issue #2:
- *   - Schedule tab with Short Break (adjustable time + notification toggle)
- *   - Waiting Time (adjustable interval)
- */
+// The preferences window. Opens from the tray and lets the user adjust break settings,
+// toggle startup behaviour, and view app info. Uses a tabbed layout with a dark theme.
 public class Settings {
 
-    // ── Dark palette ───────────────────────────────────────────────────────────
-    private static final Color BG          = new Color(43, 43, 43);
-    private static final Color BG_TOOLBAR  = new Color(55, 55, 55);
-    private static final Color BORDER_CLR  = new Color(70, 70, 70);
-    private static final Color TEXT        = new Color(220, 220, 220);
-    private static final Color TEXT_MUTED  = new Color(155, 155, 155);
-    private static final Color ORANGE      = new Color(220, 130, 50);   // slider thumb
+    // Colors that make up the dark theme
+    private static final Color BG         = new Color(43, 43, 43);
+    private static final Color BG_TOOLBAR = new Color(55, 55, 55);
+    private static final Color BORDER_CLR = new Color(70, 70, 70);
+    private static final Color TEXT       = new Color(220, 220, 220);
+    private static final Color TEXT_MUTED = new Color(155, 155, 155);
+    private static final Color ORANGE     = new Color(220, 130, 50);
 
     private static JFrame frame = null;
 
-    // ── Entry point ────────────────────────────────────────────────────────────
+    // Open the window, or bring it to the front if it's already open
     public static void showWindow() {
         EyeLogger.info("Settings", "Opening preferences window");
         if (frame != null && frame.isVisible()) {
@@ -35,7 +30,7 @@ public class Settings {
             try {
                 UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
             } catch (Exception e) {
-                EyeLogger.warn("Settings", "Failed to set cross-platform LAF: " + e.getMessage());
+                EyeLogger.warn("Settings", "Could not apply cross-platform look and feel: " + e.getMessage());
             }
 
             try {
@@ -49,19 +44,21 @@ public class Settings {
                 frame.getContentPane().setBackground(BG);
                 frame.setLayout(new BorderLayout());
 
-                // ── Toolbar tabs
+                // Build the tab bar at the top and the panels that go inside each tab
                 JPanel toolbar       = buildToolbar();
                 JPanel cardContainer = new JPanel(new CardLayout());
                 cardContainer.setBackground(BG);
 
+                JPanel mainPanel     = buildMainSettingsPanel();
                 JPanel schedulePanel = buildSchedulePanel();
                 JPanel aboutPanel    = buildAboutPanel();
+                cardContainer.add(mainPanel,     "Settings");
                 cardContainer.add(schedulePanel, "Schedule");
                 cardContainer.add(aboutPanel,    "About");
 
                 CardLayout cards = (CardLayout) cardContainer.getLayout();
 
-                // Wire tab buttons from toolbar
+                // Hook up each tab button so clicking it shows the right panel
                 for (Component c : toolbar.getComponents()) {
                     if (c instanceof JButton btn) {
                         btn.addActionListener(e -> {
@@ -72,32 +69,32 @@ public class Settings {
                                 }
                                 btn.setBackground(BG.darker());
                             } catch (Exception ex) {
-                                EyeLogger.error("Settings", "Error switching to tab: " + btn.getActionCommand(), ex);
+                                EyeLogger.error("Settings", "Couldn't switch to tab: " + btn.getActionCommand(), ex);
                             }
                         });
                     }
                 }
 
-                // Pre-select Schedule tab
+                // Highlight the Settings tab as the default on open
                 for (Component c : toolbar.getComponents()) {
-                    if (c instanceof JButton b && "Schedule".equals(b.getActionCommand())) {
+                    if (c instanceof JButton b && "Settings".equals(b.getActionCommand())) {
                         b.setBackground(BG.darker());
                         break;
                     }
                 }
-                cards.show(cardContainer, "Schedule");
+                cards.show(cardContainer, "Settings");
 
                 frame.add(toolbar, BorderLayout.NORTH);
                 frame.add(cardContainer, BorderLayout.CENTER);
                 frame.setVisible(true);
                 EyeLogger.info("Settings", "Preferences window opened successfully");
             } catch (Exception e) {
-                EyeLogger.error("Settings", "Failed to build or show preferences window", e);
+                EyeLogger.error("Settings", "Something went wrong while building the preferences window", e);
             }
         });
     }
 
-    // ── Toolbar ────────────────────────────────────────────────────────────────
+    // Creates the row of tabs at the top of the window
     private static JPanel buildToolbar() {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         bar.setBackground(BG_TOOLBAR);
@@ -109,6 +106,7 @@ public class Settings {
         return bar;
     }
 
+    // Creates a single tab button with an icon above the label
     private static JButton makeTabBtn(String icon, String label) {
         JButton b = new JButton("<html><center><font size='5'>" + icon + "</font><br>"
                 + "<font size='2'>" + label + "</font></center></html>");
@@ -123,71 +121,46 @@ public class Settings {
         return b;
     }
 
-    // ── Schedule tab ───────────────────────────────────────────────────────────
-    private static JPanel buildSchedulePanel() {
+    // The main Settings tab — lets the user enable run-at-login and reset all defaults
+    private static JPanel buildMainSettingsPanel() {
         JPanel root = new JPanel();
         root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
         root.setBackground(BG);
-        root.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
+        root.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
 
-        // ── Short Break section
-        root.add(buildSectionHeader("Short Break"));
+        root.add(buildSectionHeader("Startup"));
         root.add(Box.createVerticalStrut(6));
-        root.add(styledLabel("Short breaks help rest your eyes and reduce screen fatigue.", TEXT_MUTED, 12));
+        root.add(styledLabel("Control whether EyeSoft launches automatically when you log in.", TEXT_MUTED, 12));
         root.add(Box.createVerticalStrut(14));
 
-        // Break duration slider (5s – 300s)
-        JSlider breakSlider = makeSlider(5, 300, Main.breakSeconds, 1, s -> {
-            Main.breakSeconds = s;
-            saveInt("savedBreakTime", s);
-        });
-        root.add(sliderRow("Break for:", breakSlider, v -> v + " seconds"));
-        root.add(Box.createVerticalStrut(10));
-
-        // Notification checkbox
-        JCheckBox notifCB = makeCheckBox("Show notification before break starts", Main.showNotification);
-        notifCB.addActionListener(e -> {
+        boolean startupEnabled = StartupManager.isEnabled();
+        JCheckBox startupCB = makeCheckBox("Run EyeSoft when Mac starts", startupEnabled);
+        startupCB.addActionListener(e -> {
             try {
-                Main.showNotification = notifCB.isSelected();
-                saveBoolean("showNotification", Main.showNotification);
-                EyeLogger.info("Settings", "Notification pref changed to: " + Main.showNotification);
+                boolean enable = startupCB.isSelected();
+                EyeLogger.info("Settings", "Run at startup toggled: " + enable);
+                StartupManager.setEnabled(enable);
             } catch (Exception ex) {
-                EyeLogger.error("Settings", "Failed to save notification preference", ex);
+                EyeLogger.error("Settings", "Couldn't change startup preference", ex);
+                // Snap the checkbox back if something went wrong
+                startupCB.setSelected(!startupCB.isSelected());
             }
         });
-        root.add(notifCB);
-        root.add(Box.createVerticalStrut(18));
+        root.add(startupCB);
+        root.add(Box.createVerticalStrut(28));
 
-        // Divider
         root.add(divider());
-        root.add(Box.createVerticalStrut(18));
+        root.add(Box.createVerticalStrut(20));
 
-        // ── Waiting Time section
-        root.add(buildSectionHeader("Waiting Time"));
+        root.add(buildSectionHeader("Restore Defaults"));
         root.add(Box.createVerticalStrut(6));
-        root.add(styledLabel("How long to wait between breaks.", TEXT_MUTED, 12));
+        root.add(styledLabel("Reset all settings to their original values.", TEXT_MUTED, 12));
         root.add(Box.createVerticalStrut(14));
 
-        // Wait interval slider (60s – 7200s)
-        JSlider waitSlider = makeSlider(60, 7200, Main.waitSeconds, 60, s -> {
-            Main.waitSeconds = s;
-            saveInt("savedWaitTime", s);
-            Main.startT();  // restart timer with new wait
-        });
-        root.add(sliderRow("Every:", waitSlider, v -> {
-            if (v < 60) return v + " seconds";
-            return (v / 60) + " minute" + (v / 60 == 1 ? "" : "s");
-        }));
-        root.add(Box.createVerticalStrut(24));
-
-        // Divider + Restore defaults
-        root.add(divider());
-        root.add(Box.createVerticalStrut(16));
-
-        JButton restoreBtn = makeActionButton("Restore defaults");
-        restoreBtn.addActionListener(e -> {
+        JButton defaultBtn = makeActionButton("Restore all defaults");
+        defaultBtn.addActionListener(e -> {
             try {
-                EyeLogger.info("Settings", "Restoring defaults");
+                EyeLogger.info("Settings", "Restoring all defaults from Settings tab");
                 Main.breakSeconds     = 20;
                 Main.waitSeconds      = 600;
                 Main.showNotification = true;
@@ -197,9 +170,89 @@ public class Settings {
                 Main.startT();
                 frame.dispose();
                 showWindow();
-                EyeLogger.info("Settings", "Defaults restored successfully");
+                EyeLogger.info("Settings", "All defaults restored and window refreshed");
             } catch (Exception ex) {
-                EyeLogger.error("Settings", "Failed to restore defaults", ex);
+                EyeLogger.error("Settings", "Something went wrong while restoring defaults", ex);
+            }
+        });
+        root.add(defaultBtn);
+
+        return root;
+    }
+
+    // The Schedule tab — lets the user set how long breaks are and how often they happen
+    private static JPanel buildSchedulePanel() {
+        JPanel root = new JPanel();
+        root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
+        root.setBackground(BG);
+        root.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
+
+        root.add(buildSectionHeader("Short Break"));
+        root.add(Box.createVerticalStrut(6));
+        root.add(styledLabel("Short breaks help rest your eyes and reduce screen fatigue.", TEXT_MUTED, 12));
+        root.add(Box.createVerticalStrut(14));
+
+        // How many seconds the break screen stays up
+        JSlider breakSlider = makeSlider(5, 300, Main.breakSeconds, 1, s -> {
+            Main.breakSeconds = s;
+            saveInt("savedBreakTime", s);
+        });
+        root.add(sliderRow("Break for:", breakSlider, v -> v + " seconds"));
+        root.add(Box.createVerticalStrut(10));
+
+        // Whether to show a heads-up notification before the break kicks in
+        JCheckBox notifCB = makeCheckBox("Show notification before break starts", Main.showNotification);
+        notifCB.addActionListener(e -> {
+            try {
+                Main.showNotification = notifCB.isSelected();
+                saveBoolean("showNotification", Main.showNotification);
+                EyeLogger.info("Settings", "Notification preference changed to: " + Main.showNotification);
+            } catch (Exception ex) {
+                EyeLogger.error("Settings", "Couldn't save the notification preference", ex);
+            }
+        });
+        root.add(notifCB);
+        root.add(Box.createVerticalStrut(18));
+
+        root.add(divider());
+        root.add(Box.createVerticalStrut(18));
+
+        root.add(buildSectionHeader("Waiting Time"));
+        root.add(Box.createVerticalStrut(6));
+        root.add(styledLabel("How long to wait between breaks.", TEXT_MUTED, 12));
+        root.add(Box.createVerticalStrut(14));
+
+        // How many seconds to wait before the next break (restarts the timer when changed)
+        JSlider waitSlider = makeSlider(60, 7200, Main.waitSeconds, 60, s -> {
+            Main.waitSeconds = s;
+            saveInt("savedWaitTime", s);
+            Main.startT();
+        });
+        root.add(sliderRow("Every:", waitSlider, v -> {
+            if (v < 60) return v + " seconds";
+            return (v / 60) + " minute" + (v / 60 == 1 ? "" : "s");
+        }));
+        root.add(Box.createVerticalStrut(24));
+
+        root.add(divider());
+        root.add(Box.createVerticalStrut(16));
+
+        JButton restoreBtn = makeActionButton("Restore defaults");
+        restoreBtn.addActionListener(e -> {
+            try {
+                EyeLogger.info("Settings", "Restoring schedule defaults");
+                Main.breakSeconds     = 20;
+                Main.waitSeconds      = 600;
+                Main.showNotification = true;
+                saveInt("savedBreakTime",       20);
+                saveInt("savedWaitTime",        600);
+                saveBoolean("showNotification", true);
+                Main.startT();
+                frame.dispose();
+                showWindow();
+                EyeLogger.info("Settings", "Schedule defaults restored");
+            } catch (Exception ex) {
+                EyeLogger.error("Settings", "Something went wrong while restoring schedule defaults", ex);
             }
         });
         root.add(restoreBtn);
@@ -207,14 +260,13 @@ public class Settings {
         return root;
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
-
+    // Small interfaces used to pass lambdas into the slider helpers
     @FunctionalInterface
     interface IntConsumer { void accept(int value); }
     @FunctionalInterface
     interface Labeller    { String label(int value); }
 
-    /** Builds a row: [label] [slider] [value label] */
+    // Lays out a label on the left, a slider in the middle, and the current value on the right
     private static JPanel sliderRow(String prefix, JSlider slider, Labeller labeller) {
         JLabel valueLabel = styledLabel(labeller.label(slider.getValue()), TEXT, 13);
         valueLabel.setPreferredSize(new Dimension(90, 20));
@@ -234,6 +286,7 @@ public class Settings {
         return row;
     }
 
+    // Creates a slider and calls the callback only when the user stops dragging
     private static JSlider makeSlider(int min, int max, int value, int tickSpacing, IntConsumer onChange) {
         JSlider s = new JSlider(min, max, value);
         s.setBackground(BG);
@@ -242,26 +295,21 @@ public class Settings {
         s.setPaintLabels(false);
         s.setMinorTickSpacing(tickSpacing);
         s.setOpaque(false);
-        // Orange thumb via UI defaults
         UIManager.put("Slider.thumb", ORANGE);
-
-        // Hashtable<Integer, JLabel> labels = new Hashtable<>();
-        // labels.put(min, styledLabel(String.valueOf(min), TEXT_MUTED, 10));
-        // labels.put(max, styledLabel(String.valueOf(max), TEXT_MUTED, 10));
-        // s.setLabelTable(labels);
 
         s.addChangeListener(e -> {
             if (!s.getValueIsAdjusting()) {
                 try {
                     onChange.accept(s.getValue());
                 } catch (Exception ex) {
-                    EyeLogger.error("Settings", "Failed to apply slider value: " + s.getValue(), ex);
+                    EyeLogger.error("Settings", "Couldn't save the slider value: " + s.getValue(), ex);
                 }
             }
         });
         return s;
     }
 
+    // A simple styled checkbox that fits the dark theme
     private static JCheckBox makeCheckBox(String text, boolean selected) {
         JCheckBox cb = new JCheckBox(text, selected);
         cb.setBackground(BG);
@@ -272,6 +320,7 @@ public class Settings {
         return cb;
     }
 
+    // A text label with the right color and size for the dark UI
     private static JLabel styledLabel(String text, Color color, int size) {
         JLabel l = new JLabel(text);
         l.setForeground(color);
@@ -280,6 +329,7 @@ public class Settings {
         return l;
     }
 
+    // A bold header used to title each section within a panel
     private static JPanel buildSectionHeader(String title) {
         JLabel lbl = new JLabel(title);
         lbl.setForeground(TEXT);
@@ -291,6 +341,7 @@ public class Settings {
         return p;
     }
 
+    // A thin horizontal line used to visually separate sections
     private static JSeparator divider() {
         JSeparator sep = new JSeparator();
         sep.setForeground(BORDER_CLR);
@@ -299,6 +350,7 @@ public class Settings {
         return sep;
     }
 
+    // A dark-styled button for actions like restoring defaults
     private static JButton makeActionButton(String text) {
         JButton b = new JButton(text);
         b.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -311,6 +363,7 @@ public class Settings {
         return b;
     }
 
+    // Shorthand helpers to write a value to the saved preferences
     private static void saveInt(String key, int value) {
         Preferences.userNodeForPackage(Main.class).putInt(key, value);
     }
@@ -319,7 +372,7 @@ public class Settings {
         Preferences.userNodeForPackage(Main.class).putBoolean(key, value);
     }
 
-    // ── About tab ──────────────────────────────────────────────────────────────
+    // The About tab — just shows the app name and version
     private static JPanel buildAboutPanel() {
         JPanel p = new JPanel(new GridBagLayout());
         p.setBackground(BG);
