@@ -3,25 +3,49 @@ package com.eyesoft;
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * ScreenBlocker — Full-screen break overlay window.
+ * Launched as a separate process by Main's scheduler.
+ * All errors logged with EyeLogger context.
+ */
 public class ScreenBlocker {
+
     public static void main(String[] args) {
-        JFrame frame = new JFrame();
+        EyeLogger.info("ScreenBlocker", "Break screen starting");
 
-        frame.setType(Window.Type.UTILITY);
-        // Windows Person Check - Rivindu
+        try {
+            JFrame frame = new JFrame();
+            frame.setType(Window.Type.UTILITY);
+            frame.setUndecorated(true);
+            frame.setAlwaysOnTop(true);
+            frame.getContentPane().setBackground(Color.BLACK);
+            frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
-        frame.setUndecorated(true);
-        frame.setAlwaysOnTop(true);
-        frame.getContentPane().setBackground(Color.BLACK);
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
 
-        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        GraphicsDevice gd = ge.getDefaultScreenDevice();
+            try {
+                GraphicsDevice gd = ge.getDefaultScreenDevice();
 
-        if (gd.isFullScreenSupported()) {
-            gd.setFullScreenWindow(frame);
-        } else {
-            frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
-            frame.setVisible(true);
+                if (gd.isFullScreenSupported()) {
+                    EyeLogger.info("ScreenBlocker", "Entering full-screen exclusive mode");
+                    gd.setFullScreenWindow(frame);
+                } else {
+                    EyeLogger.warn("ScreenBlocker", "Full-screen exclusive mode not supported — falling back to maximized window");
+                    frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+                    frame.setVisible(true);
+                }
+            } catch (Exception e) {
+                EyeLogger.error("ScreenBlocker", "Failed to set full-screen mode — falling back to maximized window", e);
+                frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+                frame.setVisible(true);
+            }
+
+            EyeLogger.info("ScreenBlocker", "Break screen displayed successfully");
+
+        } catch (HeadlessException e) {
+            EyeLogger.error("ScreenBlocker", "Cannot display break screen — headless environment detected", e);
+        } catch (Exception e) {
+            EyeLogger.error("ScreenBlocker", "Unexpected error while displaying break screen", e);
         }
     }
 }

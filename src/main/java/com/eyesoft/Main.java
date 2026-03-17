@@ -22,8 +22,15 @@ public class Main {
     private static Future<?> currentTask;
 
     public static void main(String[] args) {
-        AppTray.setupTray();
-        startT();
+        EyeLogger.info("Main", "EyeSoft starting up");
+        try {
+            AppTray.setupTray();
+            startT();
+            EyeLogger.info("Main", "Startup complete");
+        } catch (Exception e) {
+            EyeLogger.error("Main", "Fatal error during startup", e);
+            System.exit(1);
+        }
     }
 
     public static void startT() {
@@ -83,8 +90,14 @@ public class Main {
 
     }
 
-    public static void shutdown () {
-        executor.shutdownNow();
-        System.exit(0);
+    public static void shutdown() {
+        EyeLogger.info("Main", "Shutdown requested — stopping executor and exiting");
+        try {
+            executor.shutdownNow();
+        } catch (Exception e) {
+            EyeLogger.error("Main", "Error while shutting down executor", e);
+        } finally {
+            System.exit(0);
+        }
     }
 }

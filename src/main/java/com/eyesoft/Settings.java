@@ -25,6 +25,7 @@ public class Settings {
 
     // ── Entry point ────────────────────────────────────────────────────────────
     public static void showWindow() {
+        EyeLogger.info("Settings", "Opening preferences window");
         if (frame != null && frame.isVisible()) {
             frame.toFront();
             return;
@@ -33,56 +34,66 @@ public class Settings {
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
-            } catch (Exception ignored) {}
-
-            frame = new JFrame("EyeSoft Preferences");
-            frame.setType(Window.Type.UTILITY);
-            frame.setSize(560, 620);
-            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            frame.setLocationRelativeTo(null);
-            frame.setAlwaysOnTop(true);
-            frame.setResizable(false);
-            frame.getContentPane().setBackground(BG);
-            frame.setLayout(new BorderLayout());
-
-            // ── Toolbar tabs
-            JPanel toolbar       = buildToolbar();
-            JPanel cardContainer = new JPanel(new CardLayout());
-            cardContainer.setBackground(BG);
-
-            JPanel schedulePanel = buildSchedulePanel();
-            JPanel aboutPanel    = buildAboutPanel();
-            cardContainer.add(schedulePanel, "Schedule");
-            cardContainer.add(aboutPanel,    "About");
-
-            CardLayout cards = (CardLayout) cardContainer.getLayout();
-
-            // Wire tab buttons from toolbar
-            for (Component c : toolbar.getComponents()) {
-                if (c instanceof JButton btn) {
-                    btn.addActionListener(e -> {
-                        cards.show(cardContainer, btn.getActionCommand());
-                        // Active highlight
-                        for (Component tb : toolbar.getComponents()) {
-                            if (tb instanceof JButton b) b.setBackground(BG_TOOLBAR);
-                        }
-                        btn.setBackground(BG.darker());
-                    });
-                }
+            } catch (Exception e) {
+                EyeLogger.warn("Settings", "Failed to set cross-platform LAF: " + e.getMessage());
             }
 
-            // Pre-select Schedule tab
-            for (Component c : toolbar.getComponents()) {
-                if (c instanceof JButton b && "Schedule".equals(b.getActionCommand())) {
-                    b.setBackground(BG.darker());
-                    break;
-                }
-            }
-            cards.show(cardContainer, "Schedule");
+            try {
+                frame = new JFrame("EyeSoft Preferences");
+                frame.setType(Window.Type.UTILITY);
+                frame.setSize(560, 620);
+                frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                frame.setLocationRelativeTo(null);
+                frame.setAlwaysOnTop(true);
+                frame.setResizable(false);
+                frame.getContentPane().setBackground(BG);
+                frame.setLayout(new BorderLayout());
 
-            frame.add(toolbar, BorderLayout.NORTH);
-            frame.add(cardContainer, BorderLayout.CENTER);
-            frame.setVisible(true);
+                // ── Toolbar tabs
+                JPanel toolbar       = buildToolbar();
+                JPanel cardContainer = new JPanel(new CardLayout());
+                cardContainer.setBackground(BG);
+
+                JPanel schedulePanel = buildSchedulePanel();
+                JPanel aboutPanel    = buildAboutPanel();
+                cardContainer.add(schedulePanel, "Schedule");
+                cardContainer.add(aboutPanel,    "About");
+
+                CardLayout cards = (CardLayout) cardContainer.getLayout();
+
+                // Wire tab buttons from toolbar
+                for (Component c : toolbar.getComponents()) {
+                    if (c instanceof JButton btn) {
+                        btn.addActionListener(e -> {
+                            try {
+                                cards.show(cardContainer, btn.getActionCommand());
+                                for (Component tb : toolbar.getComponents()) {
+                                    if (tb instanceof JButton b) b.setBackground(BG_TOOLBAR);
+                                }
+                                btn.setBackground(BG.darker());
+                            } catch (Exception ex) {
+                                EyeLogger.error("Settings", "Error switching to tab: " + btn.getActionCommand(), ex);
+                            }
+                        });
+                    }
+                }
+
+                // Pre-select Schedule tab
+                for (Component c : toolbar.getComponents()) {
+                    if (c instanceof JButton b && "Schedule".equals(b.getActionCommand())) {
+                        b.setBackground(BG.darker());
+                        break;
+                    }
+                }
+                cards.show(cardContainer, "Schedule");
+
+                frame.add(toolbar, BorderLayout.NORTH);
+                frame.add(cardContainer, BorderLayout.CENTER);
+                frame.setVisible(true);
+                EyeLogger.info("Settings", "Preferences window opened successfully");
+            } catch (Exception e) {
+                EyeLogger.error("Settings", "Failed to build or show preferences window", e);
+            }
         });
     }
 
@@ -136,8 +147,13 @@ public class Settings {
         // Notification checkbox
         JCheckBox notifCB = makeCheckBox("Show notification before break starts", Main.showNotification);
         notifCB.addActionListener(e -> {
-            Main.showNotification = notifCB.isSelected();
-            saveBoolean("showNotification", Main.showNotification);
+            try {
+                Main.showNotification = notifCB.isSelected();
+                saveBoolean("showNotification", Main.showNotification);
+                EyeLogger.info("Settings", "Notification pref changed to: " + Main.showNotification);
+            } catch (Exception ex) {
+                EyeLogger.error("Settings", "Failed to save notification preference", ex);
+            }
         });
         root.add(notifCB);
         root.add(Box.createVerticalStrut(18));
@@ -170,15 +186,21 @@ public class Settings {
 
         JButton restoreBtn = makeActionButton("Restore defaults");
         restoreBtn.addActionListener(e -> {
-            Main.breakSeconds = 20;
-            Main.waitSeconds  = 600;
-            Main.showNotification = true;
-            saveInt("savedBreakTime",   20);
-            saveInt("savedWaitTime",    600);
-            saveBoolean("showNotification", true);
-            Main.startT();
-            frame.dispose();
-            showWindow();  // re-open refreshed
+            try {
+                EyeLogger.info("Settings", "Restoring defaults");
+                Main.breakSeconds     = 20;
+                Main.waitSeconds      = 600;
+                Main.showNotification = true;
+                saveInt("savedBreakTime",       20);
+                saveInt("savedWaitTime",        600);
+                saveBoolean("showNotification", true);
+                Main.startT();
+                frame.dispose();
+                showWindow();
+                EyeLogger.info("Settings", "Defaults restored successfully");
+            } catch (Exception ex) {
+                EyeLogger.error("Settings", "Failed to restore defaults", ex);
+            }
         });
         root.add(restoreBtn);
 
@@ -230,7 +252,11 @@ public class Settings {
 
         s.addChangeListener(e -> {
             if (!s.getValueIsAdjusting()) {
-                onChange.accept(s.getValue());
+                try {
+                    onChange.accept(s.getValue());
+                } catch (Exception ex) {
+                    EyeLogger.error("Settings", "Failed to apply slider value: " + s.getValue(), ex);
+                }
             }
         });
         return s;
