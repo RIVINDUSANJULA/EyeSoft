@@ -14,13 +14,14 @@ import java.util.prefs.Preferences;
 public class Main {
 
     static Preferences prefs = Preferences.userNodeForPackage(Main.class);
-    public static int waitSeconds = prefs.getInt("savedWaitTime", 30);
-    public static int breakSeconds = prefs.getInt("savedBreakTime", 20);
+    public static int waitSeconds  = prefs.getInt("savedWaitTime",  600);   // default 10 min
+    public static int breakSeconds = prefs.getInt("savedBreakTime", 20);    // default 20 sec
+    public static boolean showNotification = prefs.getBoolean("showNotification", true);
     
     private static ExecutorService executor = Executors.newSingleThreadExecutor();
     private static Future<?> currentTask;
 
-    void main() {
+    public static void main(String[] args) {
         AppTray.setupTray();
         startT();
     }
@@ -43,10 +44,14 @@ public class Main {
                         Thread.sleep(initialWait * 1000L);
                     }
 
-                    if (notifyAdvance > 0) {
+                    if (notifyAdvance > 0 && showNotification) {
                         if (AppTray.trayIcon != null) {
-                            AppTray.trayIcon.displayMessage("Upcoming Break", "Your break will start in " + notifyAdvance + " seconds.", TrayIcon.MessageType.INFO);
+                            AppTray.trayIcon.displayMessage("Upcoming Break",
+                                "Your break will start in " + notifyAdvance + " seconds.",
+                                TrayIcon.MessageType.INFO);
                         }
+                        Thread.sleep(notifyAdvance * 1000L);
+                    } else if (notifyAdvance > 0) {
                         Thread.sleep(notifyAdvance * 1000L);
                     }
 
