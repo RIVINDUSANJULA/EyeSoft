@@ -3,29 +3,26 @@ package com.eyesoft;
 import java.io.*;
 import java.nio.file.*;
 
-/**
- * StartupManager — Handles macOS run-at-login via a LaunchAgent plist.
- * The plist is installed to ~/Library/LaunchAgents/com.eyesoft.plist
- * and tells launchd to run EyeSoft on login.
- */
+// Deals with making EyeSoft launch automatically when the user logs in.
+// On macOS this works by writing a LaunchAgent plist file that the OS picks up at login.
 public class StartupManager {
 
     private static final String LABEL      = "com.eyesoft";
     private static final String PLIST_NAME = LABEL + ".plist";
-    private static final Path   PLIST_PATH = Paths.get(
+
+    // The plist lives here — macOS reads this folder on login
+    private static final Path PLIST_PATH = Paths.get(
         System.getProperty("user.home"), "Library", "LaunchAgents", PLIST_NAME
     );
 
-    // ── Public API ─────────────────────────────────────────────────────────────
-
-    /** Returns true if the LaunchAgent plist is currently installed. */
+    // Check whether the user has already enabled run-at-login
     public static boolean isEnabled() {
         boolean exists = Files.exists(PLIST_PATH);
         EyeLogger.info("StartupManager", "Startup enabled check: " + exists + " (plist: " + PLIST_PATH + ")");
         return exists;
     }
 
-    /** Installs or removes the LaunchAgent plist based on the flag. */
+    // Turn run-at-login on or off
     public static void setEnabled(boolean enable) {
         if (enable) {
             install();
@@ -34,14 +31,12 @@ public class StartupManager {
         }
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────────
-
+    // Write the plist file and tell macOS to load it right away
     private static void install() {
         try {
-            // Resolve the jar/classpath currently running so launchd can call it
+            // We need to know which java binary and classpath to use so launchd can start us correctly
             String classPath = System.getProperty("java.class.path");
-            String javaPath  = ProcessHandle.current()
-                .info().command().orElse("java");
+            String javaPath  = ProcessHandle.current().info().command().orElse("java");
 
             String plist = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                 + "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\""
@@ -65,22 +60,22 @@ public class StartupManager {
                 + "</dict>\n"
                 + "</plist>\n";
 
-            // Ensure LaunchAgents dir exists
             Files.createDirectories(PLIST_PATH.getParent());
             Files.writeString(PLIST_PATH, plist, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
-            // Load into launchd immediately
+            // Register the plist with launchd so it takes effect without needing a reboot
             runLaunchctl("load", PLIST_PATH.toString());
 
             EyeLogger.info("StartupManager", "Launch Agent installed and loaded: " + PLIST_PATH);
 
         } catch (IOException e) {
-            EyeLogger.error("StartupManager", "Failed to write LaunchAgent plist", e);
+            EyeLogger.error("StartupManager", "Could not write the LaunchAgent plist file", e);
         } catch (Exception e) {
-            EyeLogger.error("StartupManager", "Unexpected error while installing startup item", e);
+            EyeLogger.error("StartupManager", "Something went wrong while setting up startup", e);
         }
     }
 
+    // Remove the plist file and unload it from launchd
     private static void uninstall() {
         try {
             if (Files.exists(PLIST_PATH)) {
@@ -88,15 +83,17 @@ public class StartupManager {
                 Files.delete(PLIST_PATH);
                 EyeLogger.info("StartupManager", "Launch Agent removed: " + PLIST_PATH);
             } else {
-                EyeLogger.warn("StartupManager", "Uninstall requested but plist not found: " + PLIST_PATH);
+                // Nothing to remove — probably was already disabled
+                EyeLogger.warn("StartupManager", "Tried to disable startup but the plist wasn't there: " + PLIST_PATH);
             }
         } catch (IOException e) {
-            EyeLogger.error("StartupManager", "Failed to delete LaunchAgent plist", e);
+            EyeLogger.error("StartupManager", "Could not delete the LaunchAgent plist file", e);
         } catch (Exception e) {
-            EyeLogger.error("StartupManager", "Unexpected error while removing startup item", e);
+            EyeLogger.error("StartupManager", "Something went wrong while removing the startup item", e);
         }
     }
 
+    // Run a launchctl command (load or unload) for the given plist path
     private static void runLaunchctl(String cmd, String path) throws IOException, InterruptedException {
         try {
             ProcessBuilder pb = new ProcessBuilder("launchctl", cmd, path);
@@ -104,12 +101,12 @@ public class StartupManager {
             Process p = pb.start();
             int exitCode = p.waitFor();
             if (exitCode != 0) {
-                EyeLogger.warn("StartupManager", "launchctl " + cmd + " exited with code " + exitCode);
+                EyeLogger.warn("StartupManager", "launchctl " + cmd + " finished with a non-zero exit code: " + exitCode);
             } else {
-                EyeLogger.info("StartupManager", "launchctl " + cmd + " succeeded");
+                EyeLogger.info("StartupManager", "launchctl " + cmd + " completed successfully");
             }
         } catch (IOException e) {
-            EyeLogger.error("StartupManager", "launchctl " + cmd + " failed to execute", e);
+            EyeLogger.error("StartupManager", "launchctl " + cmd + " couldn't be executed", e);
             throw e;
         }
     }

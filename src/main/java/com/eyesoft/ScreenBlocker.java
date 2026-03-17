@@ -3,11 +3,8 @@ package com.eyesoft;
 import javax.swing.*;
 import java.awt.*;
 
-/**
- * ScreenBlocker — Full-screen break overlay window.
- * Launched as a separate process by Main's scheduler.
- * All errors logged with EyeLogger context.
- */
+// This class is launched as a separate process when it's time for a break.
+// It covers the whole screen with a black window so the user actually stops and rests.
 public class ScreenBlocker {
 
     public static void main(String[] args) {
@@ -30,12 +27,14 @@ public class ScreenBlocker {
                     EyeLogger.info("ScreenBlocker", "Entering full-screen exclusive mode");
                     gd.setFullScreenWindow(frame);
                 } else {
-                    EyeLogger.warn("ScreenBlocker", "Full-screen exclusive mode not supported — falling back to maximized window");
+                    // Some displays don't support true full-screen, so we maximize instead
+                    EyeLogger.warn("ScreenBlocker", "Full-screen exclusive mode not supported — using maximized window instead");
                     frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
                     frame.setVisible(true);
                 }
             } catch (Exception e) {
-                EyeLogger.error("ScreenBlocker", "Failed to set full-screen mode — falling back to maximized window", e);
+                // If full-screen throws an error, still try to show something
+                EyeLogger.error("ScreenBlocker", "Full-screen setup failed — falling back to maximized window", e);
                 frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
                 frame.setVisible(true);
             }
@@ -43,9 +42,9 @@ public class ScreenBlocker {
             EyeLogger.info("ScreenBlocker", "Break screen displayed successfully");
 
         } catch (HeadlessException e) {
-            EyeLogger.error("ScreenBlocker", "Cannot display break screen — headless environment detected", e);
+            EyeLogger.error("ScreenBlocker", "No display available — cannot show the break screen", e);
         } catch (Exception e) {
-            EyeLogger.error("ScreenBlocker", "Unexpected error while displaying break screen", e);
+            EyeLogger.error("ScreenBlocker", "Something unexpected went wrong while showing the break screen", e);
         }
     }
 }
