@@ -1,5 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
+import java.util.prefs.Preferences;
 
 public class Settings {
 
@@ -27,6 +28,11 @@ public class Settings {
         frame.setLocationRelativeTo(null);
         frame.setAlwaysOnTop(true);
 
+        JTabbedPane tabbedPane = new JTabbedPane();
+        JPanel timingPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 20));
+
+
+
         JLabel label = new JLabel("Wait");
         // Above is Add Wait Time. Fix UI
 
@@ -38,10 +44,14 @@ public class Settings {
 
         saveButton.addActionListener(e -> {
             try {
-                int newTime = Integer.parseInt(timeField.getText().trim());
+                int newWait = Integer.parseInt(timeField.getText().trim());
 
 
-                Main.waitSeconds = newTime;
+                Main.waitSeconds = newWait;
+
+
+                Preferences prefs = Preferences.userNodeForPackage(Main.class);
+                prefs.putInt("savedWaitTime", newWait);
                 Main.startT();
 
                 frame.dispose();
@@ -51,9 +61,22 @@ public class Settings {
             }
         });
 
-        frame.add(label);
-        frame.add(timeField);
-        frame.add(saveButton);
+        timingPanel.add(label);
+        timingPanel.add(timeField);
+        timingPanel.add(saveButton);
+        timingPanel.setVisible(true);
+
+        JPanel aboutPanel = new JPanel(new BorderLayout());
+
+        JLabel aboutLabel = new JLabel("<html><center><b>EyeSoft Blocker</b><br>Take care of your eyes!<br>Version 1.0</center></html>", SwingConstants.CENTER);
+        aboutPanel.add(aboutLabel, BorderLayout.CENTER);
+
+
+        tabbedPane.addTab("Timing", timingPanel);
+        tabbedPane.addTab("About", aboutPanel);
+
+
+        frame.add(tabbedPane);
         frame.setVisible(true);
     }
 }

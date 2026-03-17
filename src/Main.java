@@ -5,10 +5,15 @@ import java.util.concurrent.*;
 
 import java.io.IOException;
 
+import java.util.prefs.Preferences;
+
 
 public class Main {
 
-    public static int waitSeconds = 5;
+//    public static int waitSeconds = ;
+
+    static Preferences prefs = Preferences.userNodeForPackage(Main.class);
+    public static int waitSeconds = prefs.getInt("savedWaitTime", 30);
     private static ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static ScheduledFuture<?> scheduledTask;
 
@@ -55,7 +60,9 @@ public class Main {
             }
         };
 
-        scheduler.scheduleWithFixedDelay(blockingTask, 10, 30, TimeUnit.SECONDS);
+        
+
+        scheduler.scheduleWithFixedDelay(blockingTask, waitSeconds, waitSeconds, TimeUnit.SECONDS);
         //In Brackets
         //2) After how much time the application run
         //(Basically after User Open App after how many seconds will Screen Blocker appear first)

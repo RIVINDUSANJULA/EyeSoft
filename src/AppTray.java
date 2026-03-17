@@ -42,4 +42,5 @@ public class AppTray {
             System.err.println("Tray Error");
         }
     }
-    }
+
+}
